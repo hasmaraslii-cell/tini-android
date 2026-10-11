@@ -1,1 +1,37 @@
-
+name: Tini APK
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+      - name: Zip ac
+        run: unzip -q tini-android.zip
+      - name: Derle
+        working-directory: tini-android
+        run: gradle :app:assembleRelease
+      - name: Imzala
+        run: |
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          PASS=$(openssl rand -hex 12)
+          echo "$PASS" > anahtar-sifresi.txt
+          keytool -genkeypair -keystore tini.jks -alias tini -keyalg RSA -keysize 2048 -validity 10000 -storepass "$PASS" -keypass "$PASS" -dname "CN=Tini"
+          $BT/zipalign -p 4 tini-android/app/build/outputs/apk/release/app-release-unsigned.apk aligned.apk
+          $BT/apksigner sign --ks tini.jks --ks-pass pass:"$PASS" --out tini-signed.apk aligned.apk
+          $BT/apksigner verify tini-signed.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tini-apk
+          path: |
+            tini-signed.apk
+            tini.jks
+            anahtar-sifresi.txt
